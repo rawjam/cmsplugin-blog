@@ -19,9 +19,10 @@ def render_month_links(context):
     request = context["request"]
     language = get_language_from_request(request)
     kw = get_translation_filter_language(Entry, language)
-    return {
+    context.update({
         'dates': Entry.published.filter(**kw).dates('pub_date', 'month'),
-    }
+    })
+    return context
 
 @register.inclusion_tag('cmsplugin_blog/tag_links_snippet.html', takes_context=True)
 def render_tag_links(context):
@@ -29,9 +30,10 @@ def render_tag_links(context):
     language = get_language_from_request(request)
     kw = get_translation_filter_language(Entry, language)
     filters = dict(is_published=True, pub_date__lte=datetime.datetime.now(), **kw)
-    return {
+    context.update({
         'tags': Tag.objects.usage_for_model(Entry, filters=filters)
-    }
+    })
+    return context
 
 @register.inclusion_tag('cmsplugin_blog/author_links_snippet.html', takes_context=True)
 def render_author_links(context, order_by='username'):
@@ -40,13 +42,14 @@ def render_author_links(context, order_by='username'):
     info = translation_pool.get_info(Entry)
     model = info.translated_model
     kw = get_translation_filter_language(Entry, language)
-    return {
+    context.update({
         'authors': auth_models.User.objects.filter(
             pk__in=model.objects.filter(
                 entry__in=Entry.published.filter(**kw)
             ).values('author')
         ).order_by(order_by).values_list('username', flat=True)
-    }
+    })
+    return context
 
 @register.filter
 def choose_placeholder(placeholders, placeholder):
