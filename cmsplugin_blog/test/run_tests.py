@@ -25,16 +25,16 @@ MIDDLEWARE_CLASSES = [
     'django.middleware.common.CommonMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.middleware.doc.XViewMiddleware',
-    'django.contrib.csrf.middleware.CsrfViewMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
     'cms.middleware.multilingual.MultilingualURLMiddleware',
     'cms.middleware.user.CurrentUserMiddleware',
     'cms.middleware.page.CurrentPageMiddleware',
     'cms.middleware.toolbar.ToolbarMiddleware',
-    'cmsplugin_blog.middleware.MultilingualBlogEntriesMiddleware'
+    'cmsplugin_blog.middleware.MultilingualBlogEntriesMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
 ]
 
 TEMPLATE_CONTEXT_PROCESSORS = [
-    "django.core.context_processors.auth",
     "django.core.context_processors.i18n",
     "django.core.context_processors.debug",
     "django.core.context_processors.request",
@@ -45,9 +45,11 @@ if django.VERSION[1] < 3: # pragma: no cover
     MIDDLEWARE_CLASSES.insert(12, 'cbv.middleware.DeferredRenderingMiddleware')
     INSTALLED_APPS.append('staticfiles')
     INSTALLED_APPS.append('cbv')
+    TEMPLATE_CONTEXT_PROCESSORS.insert(0,'django.core.context_processors.auth')
     TEMPLATE_CONTEXT_PROCESSORS.append('staticfiles.context_processors.static')
 else:
     INSTALLED_APPS.append('django.contrib.staticfiles')
+    TEMPLATE_CONTEXT_PROCESSORS.insert(0,'django.contrib.auth.context_processors.auth')
     TEMPLATE_CONTEXT_PROCESSORS.append('django.core.context_processors.static')
     
 def run_tests():
