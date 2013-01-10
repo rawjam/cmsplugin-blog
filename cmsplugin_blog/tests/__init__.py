@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.http import Http404
 from django.db import connection
 from cms.models.placeholdermodel import Placeholder
+from django import VERSION
 
 from cmsplugin_blog.models import Entry, LatestEntriesPlugin
 from cmsplugin_blog.test.testcases import BaseBlogTestCase
@@ -269,6 +270,38 @@ class ViewsTestCase(BaseBlogTestCase):
                 'slug': title.slug
             }))
         self.assertEquals(response.status_code, 200)
+
+class TimeZoneTestCase(BaseBlogTestCase):
+
+    def test_01_default_timezone_returns_proper_day(self):
+        # Timezone support introduced in 1.4
+        if VERSION[1] < 4: return
+
+        # This test requires USE_TZ = True and a TIME_ZONE setting of "Canada/Eastern"
+        with SettingsOverride(USE_TZ = True, TIME_ZONE = "Canada/Eastern"):
+            user = User.objects.all()[0]
+
+            published_at = datetime.datetime(2013,1,1,20,0)
+            #Jan 1, 2013 8:00 PM EST = Jan 2, 2013 1:00AM UTC
+            title, entry = self.create_entry_with_title(published=True,
+                published_at=published_at, author=user)
+            entry.tags = 'test'
+            entry.save()
+
+            # Check that get_absolute_url() returns 2013/01/01 not 2013/01/02
+            # This is necessary since DateDetailView expects the URL to be in the local timezone, not UTC.
+            self.assertEquals(entry.get_absolute_url(),"/test-page-1/2013/01/01/entry-title/")
+
+            response = self.client.get(reverse('en:blog_archive_day',
+                kwargs={
+                    'year': entry.pub_date.strftime('%Y'),
+                    'month': entry.pub_date.strftime('%m'),
+                    'day': entry.pub_date.strftime('%d')
+                }))
+            self.assertEquals(response.status_code, 200)
+
+
+
         
 class LanguageChangerTestCase(BaseBlogTestCase):
     
@@ -300,7 +333,7 @@ class RedirectTestCase(BaseBlogTestCase):
             mwc = [mw for mw in settings.MIDDLEWARE_CLASSES if mw != 'cmsplugin_blog.middleware.MultilingualBlogEntriesMiddleware']
             with SettingsOverride(MIDDLEWARE_CLASSES=mwc):
                 response = self.client.get(u'/test-page-1/2011/08/31/entry-title/')
-	        self.assertEqual(response.status_code, 404)
+            self.assertEqual(response.status_code, 404)
 	        
             response = self.client.get(u'/test-page-1/2011/08/31/entry-title/')
             self.assertRedirects(response, u'/de/test-page-1/2011/08/31/entry-title/')
