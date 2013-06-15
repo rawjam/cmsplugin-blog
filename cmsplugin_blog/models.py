@@ -17,6 +17,11 @@ from tagging.fields import TagField
 from simple_translation.actions import SimpleTranslationPlaceholderActions
 from djangocms_utils.fields import M2MPlaceholderField
 
+try:
+    from django.utils import timezone
+except ImportError:
+    timezone = None
+
 class PublishedEntriesQueryset(QuerySet):
     
     def published(self):
@@ -101,13 +106,18 @@ class AbstractEntryTitle(models.Model):
     
     def __unicode__(self):
         return self.title
-        
+
     def _get_absolute_url(self):
         language_namespace = 'cmsplugin_blog.middleware.MultilingualBlogEntriesMiddleware' in settings.MIDDLEWARE_CLASSES and '%s:' % self.language or ''
+        if timezone:
+            local_pub_date = timezone.localtime(self.entry.pub_date)
+        else:
+            local_pub_date = self.entry.pub_date
+
         return ('%sblog_detail' % language_namespace, (), {
-            'year': self.entry.pub_date.strftime('%Y'),
-            'month': self.entry.pub_date.strftime('%m'),
-            'day': self.entry.pub_date.strftime('%d'),
+            'year': local_pub_date.year,
+            'month': local_pub_date.strftime('%m'),
+            'day': local_pub_date.strftime('%d'),
             'slug': self.slug
         })
     get_absolute_url = models.permalink(_get_absolute_url)

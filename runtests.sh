@@ -6,7 +6,7 @@ args=("$@")
 num_args=${#args[@]}
 index=0
 
-django=12
+django=14
 reuse_env=true
 disable_coverage=true
 update_requirements=false
