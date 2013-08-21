@@ -59,14 +59,14 @@ class DateDetailView(SingleObjectTemplateResponseMixin, BaseDateDetailView):
         queryset = queryset.filter(**lookup)
 
         return super(BaseDateDetailView, self).get_object(queryset=queryset)
-    
+
 class EntryDateDetailView(DateDetailView):
     slug_field = get_translation_filter(Entry, slug=None).items()[0][0]
     date_field = 'pub_date'
     template_name_field = 'template'
     month_format = '%m'
     queryset = Entry.objects.all()
-    
+
     def get_object(self):
         try:
             obj = super(EntryDateDetailView, self).get_object()
@@ -87,10 +87,10 @@ class EntryDateDetailView(DateDetailView):
 
         set_language_changer(self.request, obj.language_changer)
         return obj
-        
+
     def get_unfiltered_queryset(self):
         return super(EntryDateDetailView, self).get_queryset().published()
-            
+
     def get_queryset(self):
         queryset = super(EntryDateDetailView, self).get_queryset()
         queryset = filter_queryset_language(self.request, queryset)
@@ -98,10 +98,53 @@ class EntryDateDetailView(DateDetailView):
             return queryset
         else:
             return queryset.published()
-    
+
     def dispatch(self, request, *args, **kwargs):
         try:
             return super(EntryDateDetailView, self).dispatch(request, *args, **kwargs)
+        except Redirect, e:
+            return redirect(*e.args, **e.kwargs)
+
+class EntryDetailView(DetailView):
+    slug_field = get_translation_filter(Entry, slug=None).items()[0][0]
+    template_name_field = 'template'
+    queryset = Entry.objects.all()
+
+    def get_object(self):
+        try:
+            obj = super(EntryDetailView, self).get_object()
+        except Http404, e:
+            # No entry has been found for a given language, we fallback to search for an entry in any language
+            # Could find multiple entries, in this way we cannot decide which one is the right one, so we let
+            # exception be propagated FIXME later
+            if is_multilingual():
+                try:
+                    queryset = self.get_unfiltered_queryset()
+                    obj = super(EntryDetailView, self).get_object(queryset=queryset)
+                except Entry.MultipleObjectsReturned, s:
+                    raise e
+                # We know there is only one title for this entry, so we can simply use get()
+                raise Redirect(obj.entrytitle_set.get().get_absolute_url())
+            else:
+                raise e
+
+        set_language_changer(self.request, obj.language_changer)
+        return obj
+
+    def get_unfiltered_queryset(self):
+        return super(EntryDetailView, self).get_queryset().published()
+
+    def get_queryset(self):
+        queryset = super(EntryDetailView, self).get_queryset()
+        queryset = filter_queryset_language(self.request, queryset)
+        if self.request.user.is_staff or self.request.user.is_superuser:
+            return queryset
+        else:
+            return queryset.published()
+
+    def dispatch(self, request, *args, **kwargs):
+        try:
+            return super(EntryDetailView, self).dispatch(request, *args, **kwargs)
         except Redirect, e:
             return redirect(*e.args, **e.kwargs)
 
