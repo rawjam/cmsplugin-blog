@@ -1,8 +1,17 @@
-from django.conf.urls import url, patterns
+from django.conf import settings
+from django.conf.urls import *
+from django.core.urlresolvers import reverse
+
+from tagging.views import tagged_object_list
+
+from menus.utils import set_language_changer
+
+from cms.models import Title
+from cms.utils.urlutils import urljoin
 
 from cmsplugin_blog.feeds import EntriesFeed, TaggedEntriesFeed, AuthorEntriesFeed
 from cmsplugin_blog.models import Entry
-from cmsplugin_blog.views import EntryDateDetailView, EntryDetailView, EntryArchiveIndexView, BlogYearArchiveView, BlogMonthArchiveView, BlogDayArchiveView, BlogAuthorArchiveView, BlogTaggedArchiveView
+from cmsplugin_blog.views import EntryDetailView, EntryArchiveIndexView, BlogYearArchiveView, BlogMonthArchiveView, BlogDayArchiveView, BlogAuthorArchiveView, BlogTaggedArchiveView
 
 blog_info_dict = {
     'queryset': Entry.objects.all(),
@@ -11,12 +20,9 @@ blog_info_dict = {
     'paginate_by': 15,
 }
 
-
-
-def language_changer(lang):
-    request = language_changer.request
-    return request.get_full_path()
-
+#def language_changer(lang):
+#    request = language_changer.request
+#    return request.get_full_path()
 
 blog_detail = EntryDetailView.as_view(
     queryset=Entry.objects.all(),

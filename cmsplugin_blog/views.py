@@ -1,26 +1,29 @@
 import datetime
 from django.views.generic.list import ListView
 from tagging.models import Tag, TaggedItem
+from django.db import models
 from tagging.utils import get_tag
 
-try: # pragma: no cover
-    from django.views.generic.dates import BaseDateDetailView, ArchiveIndexView, _date_lookup_for_field, _date_from_string, YearArchiveView, MonthArchiveView, WeekArchiveView, DayArchiveView
-    from django.views.generic.detail import SingleObjectTemplateResponseMixin, DetailView
-except ImportError:  # pragma: no cover
-    from cbv.views.detail import SingleObjectTemplateResponseMixin, DetailView
-    from cbv.views.dates import BaseDateDetailView, ArchiveIndexView, YearArchiveView, MonthArchiveView, WeekArchiveView, DayArchiveView, _date_lookup_for_field, _date_from_string
+#from django.views.generic.dates import BaseDateDetailView, ArchiveIndexView, _date_lookup_for_field, _date_from_string, YearArchiveView, MonthArchiveView, WeekArchiveView, DayArchiveView
+from django.views.generic.dates import BaseDateDetailView, ArchiveIndexView, _date_from_string, YearArchiveView, MonthArchiveView, WeekArchiveView, DayArchiveView
+from django.views.generic.detail import SingleObjectTemplateResponseMixin, DetailView
 
 from django.http import Http404
 from django.shortcuts import redirect
-from django.utils.translation import ugettext_lazy as _
 
-from cms.middleware.multilingual import has_lang_prefix
+#from cms.middleware.multilingual import has_lang_prefix
 from menus.utils import set_language_changer
 
 from simple_translation.middleware import filter_queryset_language
 from simple_translation.utils import get_translation_filter, get_translation_filter_language
 from cmsplugin_blog.models import Entry
 from cmsplugin_blog.utils import is_multilingual
+
+try:
+    from django.utils import timezone
+except ImportError:
+    timezone = None
+    pass
 
 
 class Redirect(Exception):
@@ -44,7 +47,7 @@ class DateDetailView(SingleObjectTemplateResponseMixin, BaseDateDetailView):
         if queryset is None:
             queryset = self.get_queryset()
 
-        if not self.get_allow_future() and date > datetime.date.today() and not self.request.user.is_staff: # pragma: no cover
+        if not self.get_allow_future() and date > datetime.date.today(): # pragma: no cover
             raise Http404(_(u"Future %(verbose_name_plural)s not available because %(class_name)s.allow_future is False.") % {
                 'verbose_name_plural': queryset.model._meta.verbose_name_plural,
                 'class_name': self.__class__.__name__,
@@ -53,6 +56,26 @@ class DateDetailView(SingleObjectTemplateResponseMixin, BaseDateDetailView):
         # Filter down a queryset from self.queryset using the date from the
         # URL. This'll get passed as the queryset to DetailView.get_object,
         # which'll handle the 404
+
+        # Django >= 1.5
+        #if hasattr(dates.DateDetailView, '_make_date_lookup_arg'):
+        #    return super(dates.DateDetailView, self).get_object(queryset)
+
+        def _date_lookup_for_field(field, date):
+            """
+            Patch the function so it returns aware datetimes using UTC.
+            """
+            if isinstance(field, models.DateTimeField):
+                date_range = (
+                    timezone.make_aware(datetime.datetime.combine(
+                                        date, datetime.time.min), timezone.utc),
+                    timezone.make_aware(datetime.datetime.combine(
+                                        date, datetime.time.max), timezone.utc)
+                    )
+                return {'%s__range' % field.name: date_range}
+            else:
+                return {field.name: date}
+
         date_field = self.get_date_field()
         field = queryset.model._meta.get_field(date_field)
         lookup = _date_lookup_for_field(field, date)
@@ -157,8 +180,8 @@ class EntryArchiveIndexView(ArchiveIndexView):
 
     def get_dated_items(self):
         items = super(EntryArchiveIndexView, self).get_dated_items()
-        from cmsplugin_blog.urls import language_changer
-        set_language_changer(self.request, language_changer)
+        #from cmsplugin_blog.urls import language_changer
+        #set_language_changer(self.request, language_changer)
         return items
 
     def get_dated_queryset(self, **lookup):
