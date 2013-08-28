@@ -254,6 +254,7 @@ class TaggedObjectList(ListView):
         if self.tag_instance is None:
             raise Http404(_('No Tag found matching "%s".') % tag)
         context = super(TaggedObjectList, self).get_context_data(**kwargs)
+        context['tag'] = tag
         if self.related_tags:
             context['related_tags'] = Tag.objects.related_for_model(
                 self.tag_instance,
