@@ -16,37 +16,37 @@ from simple_translation.forms import TranslationModelForm
 from simple_translation.utils import get_translation_queryset
 
 class EntryForm(TranslationModelForm):
-        
+
     class Meta:
         model = Entry
         widgets = {'tags': AutoCompleteTagInput}
-        
+
 class M2MPlaceholderAdmin(PlaceholderTranslationAdmin):
-    
+
     def get_form(self, request, obj=None, **kwargs):
         """
         Get PageForm for the Page model and modify its fields depending on
         the request.
         """
         form = super(M2MPlaceholderAdmin, self).get_form(request, obj, **kwargs)
-        
-        if obj:        
-            
+
+        if obj:
+
             for placeholder_name in obj._meta.get_field('placeholders').placeholders:
-                
+
                 placeholder, created = obj.placeholders.get_or_create(slot=placeholder_name)
-                
+
                 defaults = {'label': capfirst(placeholder_name), 'help_text': ''}
                 defaults.update(kwargs)
-                
+
                 widget = PlaceholderPluginEditorWidget(request, self.placeholder_plugin_filter)
                 widget.choices = []
-                
-                form.base_fields[placeholder.slot] = CharField(widget=widget, required=False)   
+
+                form.base_fields[placeholder.slot] = CharField(widget=widget, required=False)
                 form.base_fields[placeholder.slot].initial = placeholder.pk
-                
+
         return form
-        
+
     def get_fieldsets(self, request, obj=None):
         """
         Add fieldsets of placeholders to the list of already existing
@@ -59,14 +59,14 @@ class M2MPlaceholderAdmin(PlaceholderTranslationAdmin):
                 given_fieldsets += [(title(placeholder_name), {'fields':[placeholder_name], 'classes':['plugin-holder']})]
 
         return given_fieldsets
-            
+
     def move_plugin(self, request): # pragma: no cover
-        
+
         def get_placeholder(plugin, request):
-            
+
             return plugin.placeholder
-            
-        if request.method == "POST":    
+
+        if request.method == "POST":
             if 'plugin_id' in request.POST:
                 plugin = CMSPlugin.objects.get(pk=int(request.POST['plugin_id']))
                 if "placeholder" in request.POST:
@@ -91,15 +91,15 @@ class M2MPlaceholderAdmin(PlaceholderTranslationAdmin):
                 HttpResponse(str("error"))
             return HttpResponse(str("ok"))
         else:
-            return HttpResponse(str("error"))        
-                
+            return HttpResponse(str("error"))
+
 class BaseEntryAdmin(M2MPlaceholderAdmin):
-    
+
     form = EntryForm
-    
+
     # needed because of admin validation
     prepopulated_fields = not settings.DEBUG and {'slug': ('title',)} or {}
-    
+
     search_fields = ('entrytitle__title', 'tags')
     list_display = ('title', 'languages', 'author', 'is_published', 'pub_date')
     list_editable = ('is_published',)
@@ -112,10 +112,11 @@ class BaseEntryAdmin(M2MPlaceholderAdmin):
     author.admin_order_field = 'entrytitle__author'
 
     def title(self, obj):
+        print get_translation_queryset(obj)
         return get_translation_queryset(obj)[0].title
     title.short_description = _('title')
     title.admin_order_field = 'entrytitle__title'
-    
+
     # needed because of admin validation
     def get_fieldsets(self, request, obj=None):
         fieldsets = super(BaseEntryAdmin, self).get_fieldsets(request, obj=obj)
@@ -129,7 +130,7 @@ class BaseEntryAdmin(M2MPlaceholderAdmin):
             'tags'
         )})
         return fieldsets
-        
+
     def save_translated_model(self, request, obj, translation_obj, form, change):
         if not translation_obj.author:
             translation_obj.author=request.user
@@ -141,5 +142,5 @@ if 'guardian' in settings.INSTALLED_APPS: # pragma: no cover
         pass
 else:
     EntryAdmin = BaseEntryAdmin
-    
+
 admin.site.register(Entry, EntryAdmin)

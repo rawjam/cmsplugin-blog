@@ -1,5 +1,7 @@
 import datetime
 from django.views.generic.list import ListView
+from django.views.generic.base import TemplateView
+from django.contrib.auth.models import User
 from tagging.models import Tag, TaggedItem
 from django.db import models
 from tagging.utils import get_tag
@@ -216,7 +218,7 @@ class BlogDayArchiveView(BlogArchiveMixin, DayArchiveView):
     template_name = 'cmsplugin_blog/entry_archive_day.html'
 
 
-class BlogAuthorArchiveView(DetailView):
+"""class BlogAuthorArchiveView(TemplateView):
     model = Entry
     allow_empty = True,
     template_name = 'cmsplugin_blog/entry_author_list.html',
@@ -229,7 +231,33 @@ class BlogAuthorArchiveView(DetailView):
         return queryset
 
     def get_context_data(self, **kwargs):
-        return super(BlogAuthorArchiveView, self).get_context_data(author=self.kwargs['author'], **kwargs)
+        return super(BlogAuthorArchiveView, self).get_context_data(**kwargs)"""
+
+class BlogAuthorArchiveView(ListView):
+    queryset_or_model = None
+    user = None
+    related_tags = False
+    related_tag_counts = True
+    template_name = 'cmsplugin_blog/entry_author_list.html'
+
+    def get(self, request, *args, **kwargs):
+        author = kwargs.get('author')
+        try:
+            self.user = User.objects.get(username=author)
+        except User.DoesNotExist:
+            self.user = None
+        return super(BlogAuthorArchiveView, self).get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        author = kwargs.get('author')
+        if not self.user:
+            raise Http404('No author found found matching "%s".' % author)
+        context = super(BlogAuthorArchiveView, self).get_context_data(**kwargs)
+        context['author'] = self.user
+        return context
+
+    def get_queryset(self):
+        return Entry.published.filter(entrytitle__author=self.user)
 
 
 class TaggedObjectList(ListView):
